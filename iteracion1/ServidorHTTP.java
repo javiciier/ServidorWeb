@@ -14,14 +14,14 @@ import java.net.*;
    Así mismo, se encarga de crear registros de su actividad. */
 public class ServidorHTTP {
     // ATRIBUTOS
-    private ServerSocket servidor = null;
-    private Socket cliente = null;
+    private final ServerSocket servidor;
+    private final Socket cliente;
     private final int tiempoEspera = 30;                    // Riempo que espera por peticiones (en segundos)
     public static int puertoServidor;                       // Puerto para comunicarse con el servidor web
     FileInputStream ficheroEntrada = null;                  // Fichero de dónde se obtiene la información
     FileOutputStream ficheroSalida = null;                  // Fichero en dónde se escribe la información
     public static String registroAccesos, registroErrores;  // Nombre de registros que almacenan accesos y errores al conectarse al servdiro
-    
+    private PeticionHTTP peticionHTTP;                      // Gestiona las peticiones HTTP que recibe el servidor
     
     // CONSTRUCTORES
     public ServidorHTTP() {         // Reescritura constructor por defecto no necesita @override
@@ -44,6 +44,20 @@ public class ServidorHTTP {
             }
             else {
             }
+        }
+    }
+    
+    public void escucharPeticiones() {
+        try {
+            while (true) {          // Bucle infinito para que servidor permanezca siempre escuchando peticiones
+                this.cliente = this.servidor.accept();                          // Servidor acepta petición al recibirla (puede generar IOException)
+                this.peticionHTTP = new PeticionHTTP(this.cliente);             // Crea un nuevo cliente que gestiona la petición web (crea nuevo thread)
+                this.peticionHTTP.start();                                      // Comienza a ejecutar el nuevo thread creado anteriormente
+            }
+        }
+        catch (IOException IOex) {
+            System.out.println("Error: " + IOex.getMessage());
+            IOex.printStackTrace();
         }
     }
 }

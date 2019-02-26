@@ -10,7 +10,7 @@ import java.net.*;
 import java.io.*;
 
 /* Clase cliente encargada de realizar las peticiones HTTP al servidor web. */
-public class PeticionHTTP {
+public class PeticionHTTP extends Thread {
     // ATRIBUTOS
     public enum Estado {                    // Posibles estados al conectarse al servidor
         OK("200 OK"),                           // Conexión sin problemas
@@ -30,13 +30,25 @@ public class PeticionHTTP {
             return this.valor;
         }
     }
-    private final Socket cliente = null;           // Cliente que realiza la petición
-    private final BufferedReader entrada = null;   // Canal de entrada
+    private final Socket cliente;            // Cliente que realiza la petición
+    private BufferedReader entrada = null;   // Información a leer en la entrada
+    private OutputStream salida = null;      // Datos de salida
+    private final CabeceraHTTP cabecera;
     
     // CONSTRUCTORES
-    public SolicitudHTTP(Socket cliente) {
+    public PeticionHTTP(Socket cliente) {
         this.cliente = cliente;
-        this.argumentos = new CabeceraHTTP();
+        this.cabecera = new CabeceraHTTP();
+        
+        try {
+            // Obtenemos la entrada. API Java recomienda usar clase wrapper BufferedReader para InputStreamReader
+            this.entrada = new BufferedReader(new InputStreamReader(cliente.getInputStream()));
+            this.salida = cliente.getOutputStream();        // Muestra la información del socket (posible IOException si socket no contiene información o no existe)
+        }
+        catch (IOException IOex) {
+            System.out.println("Error: " + IOex.getMessage());
+            IOex.printStackTrace();
+        }
     }
     
     // MÉTODOS
