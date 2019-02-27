@@ -9,7 +9,9 @@ package iteracion1;
 import java.net.*;
 import java.io.*;
 
-/* Clase cliente encargada de realizar las peticiones HTTP al servidor web. */
+/**
+* Clase cliente multihthread encargada de realizar las peticiones HTTP al servidor web.
+*/
 public class PeticionHTTP extends Thread {
     // ATRIBUTOS
     public enum Estado {                    // Posibles estados al conectarse al servidor
@@ -30,9 +32,9 @@ public class PeticionHTTP extends Thread {
             return this.valor;
         }
     }
-    private final Socket cliente;            // Cliente que realiza la petición
-    private BufferedReader entrada = null;   // Información a leer en la entrada
-    private OutputStream salida = null;      // Datos de salida
+    private final Socket cliente;                                               // Cliente que realiza la petición
+    private BufferedReader entrada = null;                                      // Información a leer en la entrada
+    private OutputStream salida = null;                                         // Datos de salida
     private final CabeceraHTTP cabecera;
     
     // CONSTRUCTORES
@@ -43,14 +45,17 @@ public class PeticionHTTP extends Thread {
         try {
             // Obtenemos la entrada. API Java recomienda usar clase wrapper BufferedReader para InputStreamReader
             this.entrada = new BufferedReader(new InputStreamReader(cliente.getInputStream()));
-            this.salida = cliente.getOutputStream();        // Muestra la información del socket (posible IOException si socket no contiene información o no existe)
+            this.salida = cliente.getOutputStream();                            // Muestra la información del socket (posible IOException si socket no contiene información o no existe)
         }
-        catch (IOException IOex) {
-            System.out.println("Error: " + IOex.getMessage());
-            IOex.printStackTrace();
+        catch (IOException IOexc) {
+            System.out.println("Error: " + IOexc.getMessage());
+            IOexc.printStackTrace();
         }
     }
     
     // MÉTODOS
-    
+        // Metodo run() para comenzar a ejecutar el thread
+        // Método GEThttp()
+        // Método HEADhttp()
+        // Método verContenido() para conocer qué tipo de contenido tiene el fichero web
 }

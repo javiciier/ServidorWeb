@@ -7,12 +7,14 @@ package iteracion1;
 
 import java.util.Date;
 
-/* Clase auxiliar que gestiona la información de las cabeceras HTTP.
-   Es empleada en clase PeticionHTTP */
+/**
+* Clase auxiliar que gestiona la información de las cabeceras HTTP.
+* Es empleada en clase PeticionHTTP.
+*/
 public class CabeceraHTTP {
     // ATRIBUTOS
-    private Date fecha;            // Almacena la información temporal
-    private String dispositivo;    // Información sobre el dispositivo
+    private Date fecha;                                                         // Almacena la información temporal
+    private String dispositivo;                                                 // Información sobre el dispositivo
     
     // GETTERS
     public Date getFecha() {
