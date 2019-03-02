@@ -1,2 +1,3 @@
 # ServidorWeb
-Implementación de un servidor Web multihilo capaz de interactuar con clientes web y ofrecer páginas web y sus recursos
+Implementación de un servidor Web JAVA multithread capaz de gestionar solicitudes HTTP básicas (GET y HEAD).
+More info: RFC 1945 (HTTP 1.0), RFC 2616 (HTTP 1.1)
