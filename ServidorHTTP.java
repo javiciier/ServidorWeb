@@ -22,7 +22,7 @@ public class ServidorHTTP {
     public static int puertoServidor;                                           // Puerto para comunicarse con el servidor web
     public static String registroAccesos, registroErrores;                      // Nombre de registros que almacenan accesos y errores al conectarse al servdiro
     private PeticionHTTP peticionHTTP;                                          // Gestiona las peticiones HTTP que recibe el servidor
-    
+    public static String rutaServidor;											// Indica el directorio donde se ubica el servidor dentro del ordenador
     
     // CONSTRUCTORES
     /**
@@ -62,4 +62,6 @@ public class ServidorHTTP {
             }
         }
     }
+
+
 }
