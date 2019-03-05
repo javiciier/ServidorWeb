@@ -4,7 +4,6 @@
 * Javier Cancela Mato - javier.cmato@udc.es - Grupo 1.4
 */
 
-import java.util.Properties;
 import java.io.*;
 import java.net.*;
 
@@ -20,18 +19,20 @@ public class ServidorHTTP {
     private int puerto = 5000;                                                  // Puerto que ocupará el servidor
     private final int tiempoEspera = 60;                                        // Tiempo que espera por peticiones (en segundos)
     public static int puertoServidor;                                           // Puerto para comunicarse con el servidor web
-    public static String registroAccesos, registroErrores;                      // Nombre de registros que almacenan accesos y errores al conectarse al servdiro
     private PeticionHTTP peticionHTTP;                                          // Gestiona las peticiones HTTP que recibe el servidor
-    public static String rutaServidor;											// Indica el directorio donde se ubica el servidor dentro del ordenador
-    
+    public static String rutaServidor;						// Indica el directorio donde se ubica el servidor dentro del ordenador
+    public static String versionServidor = "HTTP 1.0";                          // Versión de HTTP del servidor. Iteracion 1: HTTP 1.0; Iteracion 2: HTTP 1.1
+    public static String nombreServidor;
     // CONSTRUCTORES
     /**
     * Constructor sin argumentos que crea un socket para el servidor en el puerto indicado.
     */
     public ServidorHTTP() {
         try {
-            this.servidor = new ServerSocket(puerto);                           // Crea el servidor en el puerto indicado
+            this.servidor = new ServerSocket(this.puerto);                           // Crea el servidor en el puerto indicado
+            System.out.println("Servidor abierto en puerto " + this.puertoServidor);
             this.servidor.setSoTimeout(tiempoEspera*1000);                      // Establece tiempo de espera indicado (x1000 ms)
+            System.out.println("Tiempo de espera establecido: " + this.tiempoEspera + " segundos.");
         }
         catch (IOException IOexc) {
             System.out.println("Error: " + IOexc.getMessage());
