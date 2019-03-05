@@ -17,7 +17,7 @@ public class PeticionHTTP extends Thread {
     private BufferedReader entrada = null;                                      // Información a leer en la entrada
     private OutputStream salida = null;                                         // Datos de salida
     private final CabeceraHTTP cabecera;
-    private String comando;							// Comando que se solicita realizar
+    private String lineaComandos;                                               // Comando que se solicita realizar
     public enum EstadoHTTP {													// Posibles estados a recibir cuando se realiza una solicitud HTTP
     	OK("200 OK"),															// Recurso se recibió sin errores
     	NOT_FOUND("404 Not Found");												// Recurso no se encontró o no existe
@@ -57,7 +57,7 @@ public class PeticionHTTP extends Thread {
      * Formato: "peticion" "recurso" "versionHTTP"
      */
     private void HEADhttp() {
-    	String ruta = this.comando.split(" ")[1];				// Obtiene el recurso solicitado
+    	String ruta = this.lineaComandos.split(" ")[1];				// Obtiene el recurso solicitado
     	File recurso = new File(ServidorHTTP.rutaServidor + ruta);		// Busca el recurso en el mismo directorio o subdirectorios en donde está ubicado el servidor
     	
     	if (recurso.exists())							// Si el recurso buscado existe en algún directorio
@@ -67,12 +67,43 @@ public class PeticionHTTP extends Thread {
     }
 
     /**
-     * Método que obtiene el cuerpo 
+     * Método que obtiene el cuerpo (contenido) de una peticion HTTP.
      */
     private void GEThttp() {
-
+        String[] comandos = this.lineaComandos.split(" ");                      // Separa los elementos de la línea de comandos. Formato <COMANDO> <RUTA> <VERSION_HTTP>
+        File recurso = new File(ServidorHTTP.rutaServidor + comandos[1]);       // Obtiene el recurso buscado a partir de la ruta del servidor y la ruta especificada.
+        Date fechaModifServidor, fechaModifCliente;
+        String index;                                                           // Ruta hacia el recurso principal. Por defecto es el fichero index.html
+        
+        if (!recurso.exists()) {                                                // Si el recurso no existe
+            mostrarRespuesta(EstadoHTTP.NOT_FOUND, null);
+        }
+        else {                                                                  // El recurso SÍ existe
+            try {
+                if ( !recurso.isDirectory() ) {                                   // El recurso no es un directorio
+                    fechaModifCliente = this.cabecera.getFecha();               // Obtiene la fecha de modificación del recurso solicitado
+                    fechaModifServidor = new Date(recurso.lastModified());      // Obtiene la fecha de modificación del recurso obtenido por el servidor
+                    if (fechaModifServidor.compareTo(fechaModifCliente) > 0 )   // Comprueba si la fecha de modificación del recurso en el servidor es posterior a la fecha del recurso
+                        mostrarRespuesta(EstadoHTTP.OK, recurso);
+                    else                                                        // Recurso ha sido modificado después del almacenado en el servidor, por lo tanto no puede encontrar el recurso exacto
+                        mostrarRespuesta(EstadoHTTP.NOT_FOUND, null);
+                }  // fin if
+                else {                                                          // Recurso recibido ES un directorio
+                    if ( !comandos[1].endsWith("/") )                           // Si el directorio no acaba con "/", se le añade
+                        comandos[1] += "/";
+                    index = ( ServidorHTTP.rutaServidor + comandos[1] + ServidorHTTP.recursoPorDefecto);  // Obtiene el nombre del recurso principal que entrega el servidor
+                    File recursoPrincipal = new File(index);                    // Carga el recurso principal
+                    if (recursoPrincipal.exists())                              // Si recurso principal existe, lo muestra
+                        mostrarRespuesta(EstadoHTTP.OK, recursoPrincipal);
+                }  // fin else
+            }
+            catch (NullPointerException NPex) {
+                System.err.println("Error: " + NPex.getMessage());
+            }
+        }  // fin else
     }
-
+    
+    
     /**
      * Método encargado de mostrar por pantalla la información asociada a la petición realizada.
      * @param estado 	Estado que debería devolver la solicitud según su situación (archivo encontrado, nombre incorrecto, etc)
@@ -97,7 +128,7 @@ public class PeticionHTTP extends Thread {
                     ultimaModificacion = new Date(recurso.lastModified());
                     canalSalida.println("Last-Modified: " + ultimaModificacion);
                     canalSalida.println("Content-Length: " + recurso.length());
-                    // OBTENER TIPO DE RECURSO
+                    canalSalida.println("Content-Type: " + getTipoContenido(recurso.getName()));
                 }
             break;  // fin OK
             case NOT_FOUND:
@@ -141,7 +172,14 @@ public class PeticionHTTP extends Thread {
         return tipo;
     }
 
-    	// Método mostrarRespuesta() que devuelve la información solicitada en la petición
         // Método verContenido() para conocer contenido (texto, gif, imágenes, etc)
-    	// Metodo run() para comenzar a ejecutar el thread
+    
+    /**
+     * Método encargado de ejecutar cada thread creado por el servidor.
+     * Sobreescribe al método run() de la clase Thread para adaptar su comportamiento a nuestro servidor.
+     */
+    @Override
+    public void run() {
+        
+    }
 }

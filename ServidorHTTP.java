@@ -22,7 +22,9 @@ public class ServidorHTTP {
     private PeticionHTTP peticionHTTP;                                          // Gestiona las peticiones HTTP que recibe el servidor
     public static String rutaServidor;						// Indica el directorio donde se ubica el servidor dentro del ordenador
     public static String versionServidor = "HTTP 1.0";                          // Versión de HTTP del servidor. Iteracion 1: HTTP 1.0; Iteracion 2: HTTP 1.1
-    public static String nombreServidor;
+    public static String nombreServidor;                                        // Nombre asignado al servidor
+    public static String recursoPorDefecto = "index.html";                      // Recurso que el servidor entregará por defecto cuando reciba una petición
+    
     // CONSTRUCTORES
     /**
     * Constructor sin argumentos que crea un socket para el servidor en el puerto indicado.
