@@ -9,7 +9,8 @@ import java.net.*;
 import java.util.Date;
 
 /**
-* Clase cliente multihthread encargada de realizar las peticiones HTTP al servidor web.
+* Clase encargada de realizar las peticiones HTTP al servidor web.
+* Soporta ejecución multihilo para poder realizar varias peticiones simultaneas.
 */
 public class PeticionHTTP extends Thread {
     // ATRIBUTOS
@@ -17,10 +18,11 @@ public class PeticionHTTP extends Thread {
     private BufferedReader entrada = null;                                      // Información a leer en la entrada
     private OutputStream salida = null;                                         // Datos de salida
     private final CabeceraHTTP cabecera;
-    private String lineaComandos;                                               // Comando que se solicita realizar
-    public enum EstadoHTTP {													// Posibles estados a recibir cuando se realiza una solicitud HTTP
-    	OK("200 OK"),															// Recurso se recibió sin errores
-    	NOT_FOUND("404 Not Found");												// Recurso no se encontró o no existe
+    private String lineaComandos = "";                                          // Comando que se solicita realizar
+    public enum EstadoHTTP {							// Posibles estados a recibir cuando se realiza una solicitud HTTP
+    	OK("200 OK"),								// Recurso se recibió sin errores
+    	NOT_FOUND("404 Not Found"),						// Recurso no se encontró o no existe
+        BAD_REQUEST("400 Bad Request");
     	// recordar eliminar ; al añadir nuevos estados
 
     	private final String estado;
@@ -36,11 +38,16 @@ public class PeticionHTTP extends Thread {
     	}
     }
 
+    public File fichero;                                                        // Fichero .html que se solicita al servidor
+    
     // CONSTRUCTORES
+    /**
+    * Constructor con parámetros que recibe un Socket y se lo asigna a la clase.
+    @param cliente Socket que asignamos a la petición.
+    */
     public PeticionHTTP(Socket cliente) {
         this.cliente = cliente;
         this.cabecera = new CabeceraHTTP();
-        
         try {
             // Obtenemos la entrada. API Java recomienda usar clase wrapper BufferedReader para InputStreamReader
             this.entrada = new BufferedReader(new InputStreamReader(cliente.getInputStream()));
@@ -54,16 +61,16 @@ public class PeticionHTTP extends Thread {
     // MÉTODOS
     /**
      * Método que obtiene la cabecera de una petición HTTP según formato RFC 1945.
-     * Formato: "peticion" "recurso" "versionHTTP"
+     * Formato: <peticion> <recurso> <versionHTTP>
      */
     private void HEADhttp() {
     	String ruta = this.lineaComandos.split(" ")[1];				// Obtiene el recurso solicitado
     	File recurso = new File(ServidorHTTP.rutaServidor + ruta);		// Busca el recurso en el mismo directorio o subdirectorios en donde está ubicado el servidor
     	
-    	if (recurso.exists())							// Si el recurso buscado existe en algún directorio
-    		mostrarRespuesta(EstadoHTTP.OK, recurso);			// Petición correcta. Muestra la información del recurso recibido como argumento
+    	if (!recurso.exists())							// Si el recurso buscado existe en algún directorio
+            mostrarRespuesta(EstadoHTTP.NOT_FOUND, null);			// Muestra ERROR 404 porque no existe archivo. Al no existir, no le pasa como argumento ningún recurso
     	else
-    		mostrarRespuesta(EstadoHTTP.NOT_FOUND, null);			// Muestra ERROR 404 porque no existe archivo. Al no existir, no le pasa como argumento ningún recurso
+            mostrarRespuesta(EstadoHTTP.OK, recurso);                           // Petición correcta. Muestra la información del recurso recibido como argumento
     }
 
     /**
@@ -138,6 +145,12 @@ public class PeticionHTTP extends Thread {
                 // LÍNEAS DE CABECERA
                 
             break;  // fin NOT_FOUND
+            case BAD_REQUEST:
+            	// LÍNEA DE ESTADO
+            	textoEstado = ( ServidorHTTP.versionServidor + " " + estado.BAD_REQUEST.getEstadoHTTP() );
+            	// LÍNEAS DE CABECERA
+            	
+            break;
     	}// fin switch
     }
     
@@ -171,15 +184,44 @@ public class PeticionHTTP extends Thread {
         
         return tipo;
     }
-
-        // Método verContenido() para conocer contenido (texto, gif, imágenes, etc)
     
     /**
      * Método encargado de ejecutar cada thread creado por el servidor.
      * Sobreescribe al método run() de la clase Thread para adaptar su comportamiento a nuestro servidor.
+     * Este método está destinado a ejecutarse desde el método main() del ServidorHTTP
      */
     @Override
     public void run() {
-        
+        String peticion;
+        try {
+            this.lineaComandos = this.entrada.readLine();                       // Obtiene la petición realizada y la almacena (posible IOException)
+            if (this.lineaComandos != null) {                                   // Si recibió la petición correctamente
+                System.out.println(this.lineaComandos);                         // Muestra la petición solicitada por pantalla
+                peticion = this.lineaComandos.split(" ")[0];                    // Obtiene qué petición realizar (GET, HEAD, etc)
+                switch (peticion) {
+                    case "HEAD":
+                        HEADhttp();
+                    break;
+                    case "GET":
+                        GEThttp();
+                    break;
+                    default:                                                    // Recibe una petición que no se comprende (mal escrita, no existe, etc)
+                        mostrarRespuesta(EstadoHTTP.BAD_REQUEST, null);
+                } // fin switch
+            } // fin if
+        } // fin try
+        catch (IOException IOex) {
+            System.err.println("Error: " + IOex.getLocalizedMessage());
+        }
+        finally {                                                               // Cerramos los canales de entrada y salida y capturamos sus posibles excepciones
+            try {
+                this.entrada.close();
+                this.salida.close();
+                this.cliente.close();
+            }
+            catch (IOException IOex) {
+                throw new RuntimeException(IOex);
+            }
+        } // fin finalñy
     }
 }

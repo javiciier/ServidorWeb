@@ -31,8 +31,9 @@ public class ServidorHTTP {
     */
     public ServidorHTTP() {
         try {
-            this.servidor = new ServerSocket(this.puerto);                           // Crea el servidor en el puerto indicado
+            this.servidor = new ServerSocket(this.puerto);                      // Crea el servidor en el puerto indicado
             System.out.println("Servidor abierto en puerto " + this.puertoServidor);
+            System.out.println("Servidor creado en puerto " + puerto);
             this.servidor.setSoTimeout(tiempoEspera*1000);                      // Establece tiempo de espera indicado (x1000 ms)
             System.out.println("Tiempo de espera establecido: " + this.tiempoEspera + " segundos.");
         }
@@ -45,13 +46,14 @@ public class ServidorHTTP {
     public void escucharPeticiones() {
         try {
             while (true) {          // Bucle infinito para que servidor siempre escuche peticiones
-                this.cliente = this.servidor.accept();                          // Servidor acepta petición al recibirla (puede generar IOException)
-                this.peticionHTTP = new PeticionHTTP(this.cliente);             // Crea un nuevo cliente que gestiona la petición web (crea nuevo thread)
+                this.cliente = this.servidor.accept();                          // Servidor acepta conexión al recibirla (puede generar IOException)
+                this.peticionHTTP = new PeticionHTTP(this.cliente);             // Crea una nueva petición HTTP que gestiona la conexión recibida
+                System.out.println("Conexión aceptada.");
                 this.peticionHTTP.start();                                      // Comienza a ejecutar el nuevo thread creado anteriormente
             }
         }
         catch (SocketTimeoutException TOexc) {
-            System.err.println("Tiempo agotado." + this.tiempoEspera + "segundos sin recibir peticiones");
+            System.err.println("Tiempo agotado." + tiempoEspera + "segundos sin recibir peticiones");
         }
         catch (IOException IOexc) {
             System.out.println("Error: " + IOexc.getMessage());
