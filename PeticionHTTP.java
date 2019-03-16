@@ -209,6 +209,52 @@ public class PeticionHTTP extends Thread {
     }
     
     /**
+     * Método que escribe en un fichero de texto la actividad realizada por el servidor.
+     * Si el fichero no existe, se genera uno nuevo y se escribe la actividad.
+     * En caso de generarse algún error, genera un nuevo fichero para registrar explícitamente los errores.
+     * @param actividad     Texto a guardar en el registro
+     * @param recurso       Recurso solicitado
+     */
+    private void registrarActividad(String actividad, File recurso) {
+        File registro;                                                          // Fichero en el que escribir la actividad
+        PrintWriter canalSalida;
+        String[] respuesta = actividad.split(" ");                              // Array que almacena la respuesta enviada por el servidor
+        String codigoRespuesta = respuesta[1];                                  // Cadena que contiene el código de respuesta de la petición HTTP
+        FileOutputStream ficheroRegistro;
+        
+        try {
+            switch ( codigoRespuesta.charAt(0) ) {
+                case '2':
+                case '3':                                                       // Las peticiones fueron correctas
+                    registro = new File(ServidorHTTP.registroAccesos);          // Obtiene el fichero de registro
+                    canalSalida = new PrintWriter(new FileOutputStream(registro, true), true);   // Establece el registro de accesos como canal de salida (en dónde escribir la información)
+                    // Escribe la información de la solicitud en el registro de accesos
+                    canalSalida.println("Peticion recibida: " + this.lineaComandos);
+                    canalSalida.println("IP cliente: " + this.cliente.getInetAddress().toString());
+                    canalSalida.println("Fecha y hora de petición: " + new Date());
+                    canalSalida.println("Código de estado: " + codigoRespuesta);
+                    if ( recurso != null )                                      // Si recibe algún recurso, muestra su tamaño
+                        canalSalida.println("Tamaño: " + recurso.length() + " (Bytes)");
+                    canalSalida.println("------------------------------\n");    // Separa un registro de otro
+                break;
+                case '4':                                                       // Se generó un error gestionando la petición
+                    registro = new File(ServidorHTTP.registroErrores);          // Obtiene el fichero donde almacena los errores
+                    canalSalida = new PrintWriter(new FileOutputStream(registro, true), true);      // Establece el registro de errores como fichero en el que escribir
+                    // Escribe la información en el registro de errores
+                    canalSalida.println("Petición errónea: " + this.lineaComandos);
+                    canalSalida.println("IP cliente: " + this.cliente.getInetAddress().toString());
+                    canalSalida.println("Fecha y hora del error: " + new Date());
+                    canalSalida.println("Mensaje de error: " + actividad);
+                    canalSalida.println("------------------------------\n");    // Separa un registro de otro
+                break;
+            } // fin switch
+        }
+        catch (FileNotFoundException FNFexc) {
+            System.err.println("Error: no existe el registro de accesos " + registro.getName());
+        }
+    }
+    
+    /**
      * Método encargado de ejecutar cada thread creado por el servidor.
      * Sobreescribe al método run() de la clase Thread para adaptar su comportamiento a nuestro servidor.
      * Este método está destinado a ejecutarse desde el método main() del ServidorHTTP

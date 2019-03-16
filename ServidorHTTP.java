@@ -21,8 +21,10 @@ public class ServidorHTTP {
     private final int tiempoEspera = 60;                                        // Tiempo que espera por peticiones (en segundos)
     private PeticionHTTP peticionHTTP;                                          // Gestiona las peticiones HTTP que recibe el servidor
     public static String rutaServidor = "/home/fic/Escritorio/Redes/Practicas/p1";         // Indica el directorio donde se ubica el servidor dentro del ordenador
-    public static String versionServidor = "HTTP/1.0";                          // Versión de HTTP del servidor. Iteracion 1: HTTP 1.0; Iteracion 2: HTTP 1.1
-    public static String nombreServidor = "ServidorHTTP-iteracion1";            // Nombre asignado al servidor
+    public static String versionServidor = "HTTP/1.1";                          // Versión de HTTP del servidor. Iteracion 1: HTTP 1.0; Iteracion 2: HTTP 1.1
+    public static String nombreServidor = "ServidorHTTP-iteracion2";            // Nombre asignado al servidor
+    public static String registroAccesos = rutaServidor + "AccesosServidor";    // Ruta hacia el registro que almacena los accesos al servidor
+    public static String registroErrores = rutaServidor + "ErroresServidor";    // Ruta hacia el registro que almacena los errores producidos en las peticiones al servidor
     //public static String recursoPorDefecto = "index.html";                      // Recurso que el servidor entregará por defecto cuando reciba una petición
     
     // CONSTRUCTORES

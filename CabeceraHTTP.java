@@ -1,6 +1,6 @@
 /*
 * REDES 2018-2019
-* Práctica 1 - Iteración 1
+* Práctica 1 - Iteración 2
 * Javier Cancela Mato - javier.cmato@udc.es - Grupo 1.4
 */
 
