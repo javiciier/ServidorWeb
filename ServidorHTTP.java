@@ -1,11 +1,12 @@
 /*
 * REDES 2018-2019
-* Práctica 1 - Iteración 1
+* Práctica 1 - Iteración 2
 * Javier Cancela Mato - javier.cmato@udc.es - Grupo 1.4
 */
 
 import java.io.*;
 import java.net.*;
+import java.util.Properties;
 
 /**
 * Servidor multithread encargado de gestionar peticiones web HTTP.
@@ -25,7 +26,24 @@ public class ServidorHTTP {
     public static String nombreServidor = "ServidorHTTP-iteracion2";            // Nombre asignado al servidor
     public static String registroAccesos = rutaServidor + "AccesosServidor";    // Ruta hacia el registro que almacena los accesos al servidor
     public static String registroErrores = rutaServidor + "ErroresServidor";    // Ruta hacia el registro que almacena los errores producidos en las peticiones al servidor
-    //public static String recursoPorDefecto = "index.html";                      // Recurso que el servidor entregará por defecto cuando reciba una petición
+    enum ConfiguracionDefecto {
+        PORT("5000"),                                                           // Puerto por defecto que abre el servidor
+        DIRECTORY_INDEX("index.html"),                                          // Fichero por defecto que muestra el servidor
+        DIRECTORY("ServidorHTTP"),                                              // Nombre del directorio donde se almacena el servidor
+        ALLOW("false");                                                         // INdica si se recibe una petición a un archivo (false) o a un directorio (true) (false por defecto
+        
+        private final String argumento;
+        
+        // CONSTRUCTORES
+        ConfiguracionDefecto(String argumento) {
+            this.argumento = argumento;
+        }
+        
+        // GETTERS
+        public String getConfiguracion() {
+            return this.argumento;
+        }
+    }
     
     // CONSTRUCTORES
     /**
@@ -70,6 +88,45 @@ public class ServidorHTTP {
             }
         }
     }
+    
+    /**
+    * Método que autoconfigura el servidor a partir de un fichero con las configuraciones por defecto.
+    * Mediante un boolean se puede comprobar si se ha configurado correctamente.
+    * @param rutaConfiguracion    Ruta hacia el directorio en donde está el fichero con las propiedades del servidor.
+    * @return                     TRUE si se puede configurar el servidor correctamente; FALSE en caso contrario.
+    */
+    private boolean configurarServidor(String rutaConfiguracion) {
+        Properties propiedades = new Properties();                              // Permite manejar las propiedades del servidor
+        File ficheroConfiguracion = null;                                       // Fichero con la configuración del servidor
+        String nombreFichero = "servidor.properties";                           // Nombre del fichero que almacena la configuración
+        FileInputStream canalEntrada = null;                                        // Permite obtener los datos de entrada
+        FileOutputStream canalSalida = null;                                        // Muestra los datos obtenidos
+        
+        try {
+            if ( !rutaConfiguracion.endsWith("/") )                             // Si la ruta de configuración no es un directorio
+                rutaConfiguracion += "/";                                       // Se añade / al final para que sea directorio
+            ficheroConfiguracion = new File(rutaConfiguracion + nombreFichero); // Obtiene el nombre del fichero que contiene la configuración
+            ficheroConfiguracion.createNewFile();                               // En caso de que dicho fichero no exista, lo crea
+            canalEntrada = new FileInputStream(ficheroConfiguracion);           // Los datos se obtendrán a partir del fichero de configuración
+            propiedades.load(canalEntrada);                                     // Obtiene las propiedades almacenadas en el fichero de configuración del servidor
+            
+            /* En caso de que el fichero de configuración fuese creado de cero,
+            no tendrá ninguna información almacenada, por lo que debemos escribir
+            en el fichero las propiedades y configuración por defecto del servidor. */
+            generarConfiguracionPorDefecto(rutaConfiguracion);                  // PENDIENTE DE IMPLEMENTAR
+        }
+        catch (FileNotFoundException FNFexc) {
+            System.err.println("Error: no existe el fichero " + nombreFichero);
+            return false;
+        }
+        catch (IOException IOexc) {
+            System.err.println("IOexc: " + IOexc.getMessage());
+        }
+        
+        return true;
+    }
+
+    
     
     // MÉTODO MAIN
     /**
