@@ -296,6 +296,6 @@ public class PeticionHTTP extends Thread {
                 System.err.println("Error: no se pueden liberar recursos.");
                 throw new RuntimeException(IOexc);
             }
-        } // fin finalñy
+        } // fin finally
     }
 }
