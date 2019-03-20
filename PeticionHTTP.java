@@ -16,11 +16,12 @@ import java.util.Date;
 public class PeticionHTTP extends Thread {
     // ATRIBUTOS
     private final Socket cliente;                                               // Cliente que realiza la petición
-    private BufferedReader entrada;                                      // Información a leer en la entrada
-    private OutputStream salida;                                         // Datos de salida
+    private BufferedReader entrada;                                             // Información a leer en la entrada
+    private OutputStream salida;                                                // Datos de salida
     private final CabeceraHTTP cabecera;
-    private String lineaComandos;                                          // Comando que se solicita realizar
-    enum EstadoHTTP {							// Posibles estados a recibir cuando se realiza una solicitud HTTP
+    private String lineaComandos;                                               // Comando que se solicita realizar
+    public final int tiempoEspera = 60;
+    enum EstadoHTTP {				// Posibles estados a recibir cuando se realiza una solicitud HTTP
     	OK("200 OK"),								// Recurso se recibió sin errores
     	NOT_FOUND("404 Not Found"),						// Recurso no se encontró o no existe
         BAD_REQUEST("400 Bad Request");
@@ -48,9 +49,13 @@ public class PeticionHTTP extends Thread {
         this.cliente = cliente;
         this.cabecera = new CabeceraHTTP();
         try {
+            this.cliente.setSoTimeout(this.tiempoEspera * 1000);                // Establece tiempo de espera del socket a 1 minuto
             // Obtenemos la entrada. API Java recomienda usar clase wrapper BufferedReader para InputStreamReader
             this.entrada = new BufferedReader(new InputStreamReader(cliente.getInputStream()));
             this.salida = cliente.getOutputStream();                            // Muestra la información del socket (posible IOException si socket no contiene información o no existe)
+        }
+        catch (SocketException Sexc) {
+            System.err.println("Socket Error: " + Sexc.getMessage());
         }
         catch (IOException IOexc) {
             System.out.println("Error: " + IOexc.getMessage());
@@ -96,7 +101,7 @@ public class PeticionHTTP extends Thread {
      */
     private void mostrarRespuesta(EstadoHTTP estado, File recurso, boolean mostrarCuerpo) {
     	PrintWriter canalSalida = new PrintWriter(this.salida, true);		// Establece un canal de salida para mostrar información por pantalla
-    	String textoEstado;							// Texto que se mostrará según el estado de la petición
+    	String textoEstado = "";                                              // Texto que se mostrará según el estado de la petición
         Date fechaRespuesta;                                                    // Almacena la fecha en la que se generó la petición
     
         // LÍNEA DE ESTADO
@@ -217,7 +222,7 @@ public class PeticionHTTP extends Thread {
      * @param recurso       Recurso solicitado
      */
     private void registrarActividad(String actividad, File recurso) {
-        File registro;                                                          // Fichero en el que escribir la actividad
+        File registro = null;                                                          // Fichero en el que escribir la actividad
         PrintWriter canalSalida;
         String[] respuesta = actividad.split(" ");                              // Array que almacena la respuesta enviada por el servidor
         String codigoRespuesta = respuesta[1];                                  // Cadena que contiene el código de respuesta de la petición HTTP
@@ -231,7 +236,7 @@ public class PeticionHTTP extends Thread {
                     canalSalida = new PrintWriter(new FileOutputStream(registro, true), true);   // Establece el registro de accesos como canal de salida (en dónde escribir la información)
                     // Escribe la información de la solicitud en el registro de accesos
                     canalSalida.println("Peticion recibida: " + this.lineaComandos);
-                    canalSalida.println("IP cliente: " + this.cliente.getInetAddress().toString());
+                    canalSalida.println("IP cliente: " + this.cliente.getInetAddress().toString().substring(1));
                     canalSalida.println("Fecha y hora de petición: " + new Date());
                     canalSalida.println("Código de estado: " + codigoRespuesta);
                     if ( recurso != null )                                      // Si recibe algún recurso, muestra su tamaño
@@ -243,7 +248,7 @@ public class PeticionHTTP extends Thread {
                     canalSalida = new PrintWriter(new FileOutputStream(registro, true), true);      // Establece el registro de errores como fichero en el que escribir
                     // Escribe la información en el registro de errores
                     canalSalida.println("Petición errónea: " + this.lineaComandos);
-                    canalSalida.println("IP cliente: " + this.cliente.getInetAddress().toString());
+                    canalSalida.println("IP cliente: " + this.cliente.getInetAddress().toString().substring(1));
                     canalSalida.println("Fecha y hora del error: " + new Date());
                     canalSalida.println("Mensaje de error: " + actividad);
                     canalSalida.println("------------------------------\n");    // Separa un registro de otro
@@ -251,7 +256,7 @@ public class PeticionHTTP extends Thread {
             } // fin switch
         }
         catch (FileNotFoundException FNFexc) {
-            System.err.println("Error: no existe el registro de accesos " + registro.getName());
+            System.err.println("Error: no existe el registro " + registro.getName());
         }
     }
     
@@ -262,13 +267,16 @@ public class PeticionHTTP extends Thread {
      */
     @Override
     public void run() {
-        String peticion;
+        String[] peticion = this.lineaComandos.split(" ");                      // Obtiene qué petición realizar (GET, HEAD, etc)
         try {
             this.lineaComandos = this.entrada.readLine();                       // Obtiene la petición realizada y la almacena (posible IOException)
-            if ( this.lineaComandos != null ) {                                   // Si recibió la petición correctamente
+            if ( this.lineaComandos != null ) {                                 // Si recibió la petición correctamente
+                // Comprobar que el formato de la petición es correcto
+                if (peticion.length != 3) {
+                    throw new IllegalArgumentException("FORMATO: comando fichero versionHTTP");
+                }
                 System.out.println(this.lineaComandos);                         // Muestra la petición solicitada por pantalla
-                peticion = this.lineaComandos.split(" ")[0];                    // Obtiene qué petición realizar (GET, HEAD, etc)
-                switch (peticion) {
+                switch (peticion[0]) {
                     case "HEAD":
                         HEADhttp();
                     break;

@@ -24,8 +24,8 @@ public class ServidorHTTP {
     public static String rutaServidor = "/home/fic/Escritorio/Redes/Practicas/p1";         // Indica el directorio donde se ubica el servidor dentro del ordenador
     public static String versionServidor = "HTTP/1.1";                          // Versión de HTTP del servidor. Iteracion 1: HTTP 1.0; Iteracion 2: HTTP 1.1
     public static String nombreServidor = "Servidor HTTP de Javier";            // Nombre asignado al servidor
-    public static String registroAccesos = rutaServidor + "AccesosServidor";    // Ruta hacia el registro que almacena los accesos al servidor
-    public static String registroErrores = rutaServidor + "ErroresServidor";    // Ruta hacia el registro que almacena los errores producidos en las peticiones al servidor
+    public static String registroAccesos = rutaServidor + "/registros/AccesosServidor.txt";    // Ruta hacia el registro que almacena los accesos al servidor
+    public static String registroErrores = rutaServidor + "/registros/ErroresServidor.txt";    // Ruta hacia el registro que almacena los errores producidos en las peticiones al servidor
     public static String recursoPorDefecto;                                     // Fichero que devuelve el servidor por defecto
     public boolean permiso;
     enum ConfiguracionDefecto {
@@ -34,7 +34,7 @@ public class ServidorHTTP {
         */
         PORT("5000"),                                                           // Puerto por defecto que abre el servidor
         DIRECTORY_INDEX("index.html"),                                          // Fichero por defecto que muestra el servidor
-        DIRECTORY("ServidorHTTP"),                                              // Nombre del directorio donde se almacena el servidor
+        DIRECTORY("ficheros"),                                              // Nombre del directorio donde se almacena el servidor
         ALLOW("false");                                                         // INdica si se recibe una petición a un archivo (false) o a un directorio (true) (false por defecto
         
         private final String argumento;
@@ -58,7 +58,7 @@ public class ServidorHTTP {
         try {
             this.servidor = new ServerSocket(this.puerto);                      // Crea el servidor en el puerto indicado (genera IOException si puerto está ocupado)
             System.out.println("Servidor abierto en puerto " + this.puerto);
-            this.servidor.setSoTimeout(tiempoEspera*1000);                      // Establece tiempo de espera indicado (x1000 ms)
+            this.servidor.setSoTimeout(this.tiempoEspera*1000);                      // Establece tiempo de espera indicado (x1000 ms)
             System.out.println("Tiempo de espera establecido: " + this.tiempoEspera + " segundos.");
         }
         catch (IOException IOexc) {
@@ -89,7 +89,7 @@ public class ServidorHTTP {
         try {
             while (true) {          // Bucle infinito para que servidor siempre escuche peticiones
                 this.cliente = this.servidor.accept();                          // Servidor acepta conexión al recibirla (puede generar IOException)
-                //System.out.println("Conexión aceptada.");
+                System.out.println("Conexión aceptada.");
                 this.peticionHTTP = new PeticionHTTP(this.cliente);             // Crea una nueva petición HTTP que gestiona la conexión recibida
                 this.peticionHTTP.start();                                      // Comienza a ejecutar el nuevo thread creado anteriormente
             }
@@ -117,10 +117,10 @@ public class ServidorHTTP {
     * @param rutaConfiguracion    Ruta hacia el directorio en donde está el fichero con las propiedades del servidor.
     * @return                     TRUE si se puede configurar el servidor correctamente; FALSE en caso contrario.
     */
-    private boolean configurarServidor(String rutaConfiguracion) {
+    private void configurarServidor(String rutaConfiguracion) {
         Properties propiedades = new Properties();                              // Permite manejar las propiedades del servidor
-        File ficheroConfiguracion = null;                                       // Fichero con la configuración del servidor
-        String nombreFichero = "servidor.properties";                           // Nombre del fichero que almacena la configuración
+        File ficheroConfiguracion;                                              // Fichero con la configuración del servidor
+        String nombreFichero = rutaConfiguracion.substring(rutaConfiguracion.lastIndexOf("/"));    // Nombre del fichero que almacena la configuración
         FileInputStream canalEntrada = null;                                    // Permite obtener los datos de entrada
         FileOutputStream canalSalida = null;                                    // Muestra los datos obtenidos
         // Variables auxiliares temporales
@@ -132,7 +132,7 @@ public class ServidorHTTP {
         try {
             if ( !rutaConfiguracion.endsWith("/") )                             // Si la ruta de configuración no es un directorio
                 rutaConfiguracion += "/";                                       // Se añade / al final para que sea directorio
-            ficheroConfiguracion = new File(rutaConfiguracion + nombreFichero); // Obtiene el nombre del fichero que contiene la configuración
+            ficheroConfiguracion = new File(rutaConfiguracion);                 // Obtiene el nombre del fichero que contiene la configuración
             ficheroConfiguracion.createNewFile();                               // En caso de que dicho fichero no exista, lo crea
             canalEntrada = new FileInputStream(ficheroConfiguracion);           // Los datos se obtendrán a partir del fichero de configuración
             propiedades.load(canalEntrada);                                     // Obtiene las propiedades almacenadas en el fichero de configuración del servidor
@@ -168,11 +168,10 @@ public class ServidorHTTP {
             propiedades.store(canalSalida, "Configuración por defecto del servidor:");      // Escribe las propiedades en el fichero y añade un comentario            
         } // fin try
         catch (FileNotFoundException FNFexc) {
-            System.err.println("Error: no existe el fichero " + nombreFichero);
-            return false;
+            System.err.println("Error: no existe el registro " + nombreFichero);
         }
         catch (IOException IOexc) {
-            System.err.println("IOexc: " + IOexc.getMessage());
+            System.err.println("IOexception: " + IOexc.getMessage());
         }
         finally {                                                               // Cerramos los canales de entrada y salida y capturamos sus posibles excepciones
             try {
@@ -184,8 +183,6 @@ public class ServidorHTTP {
                 throw new RuntimeException(IOexc);
             }
         } // fin finally
-        
-        return true;
     }
     
     
@@ -194,23 +191,23 @@ public class ServidorHTTP {
     * Se encarga de crear una instancia del servidor para que escuche las peticiones recibidas. 
     */
     public static void main(String[] args) {
-        ServidorHTTP servidor;                                                  // Declara el servidor a usar
+        ServidorHTTP servidor = null;                                                  // Declara el servidor a usar
         
         switch( args.length ) {                                                 // Según el nº de parámetros recibidos
             case 0:         // NO recibe ningún argumento
                 servidor = new ServidorHTTP();                                  // Crea el servidor por defecto
-            break;
+                servidor.escucharPeticiones();
+                break;
             case 1:         // Recibe la ruta al fichero de configuracion
                 File config = new File(args[0]);                                // Obtiene el fichero
-                if ( config.exists() ) {
-                    servidor = new ServidorHTTP(args[0]);                       // Llama al constructor con parámetros
-                }
+                servidor = new ServidorHTTP(args[0]);                       // Llama al constructor con parámetros
+                servidor.escucharPeticiones();
             break;
             default:        // Recibe más de 1 argumento
                 System.err.println("FORMATO: ServidorHTTP <ficheroConfiguracion>");
                 System.exit(-1);
             break;
         }
-        servidor.escucharPeticiones();
+        
     }
 }
