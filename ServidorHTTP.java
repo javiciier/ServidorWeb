@@ -75,8 +75,7 @@ public class ServidorHTTP {
         try {
             configurarServidor(rutaConfiguracion);
             this.servidor = new ServerSocket(this.puerto);
-            this.servidor.setSoTimeout(this.tiempoEspera);
-            System.out.println("Servidor configurado a partir del fichero de configuración " + new File(rutaConfiguracion).getName());
+            this.servidor.setSoTimeout(this.tiempoEspera*1000);
         }
         catch (IOException IOexc) {
             System.err.println("Error: no se pudo configurar servidor a partir del fichero.");
@@ -95,7 +94,7 @@ public class ServidorHTTP {
             }
         }
         catch (SocketTimeoutException TOexc) {
-            System.err.println("Tiempo agotado. " + tiempoEspera + " segundos sin recibir peticiones");
+            System.err.println("Tiempo agotado. " + tiempoEspera + " segundos sin recibir peticiones.");
         }
         catch (IOException IOexc) {
             System.out.println("Error E/S: " + IOexc.getMessage());
@@ -103,6 +102,7 @@ public class ServidorHTTP {
         finally {                                                               // Si no recibe ninguna petición, cierra el puerto y captura posibles excepciones
             try {
                 this.servidor.close();
+                System.out.println("Servidor se ha desconectado.");
             }
             catch (IOException IOexc) {
                 System.err.println("Error: no se pueden liberar recursos.");
@@ -120,7 +120,7 @@ public class ServidorHTTP {
     private void configurarServidor(String rutaConfiguracion) {
         Properties propiedades = new Properties();                              // Permite manejar las propiedades del servidor
         File ficheroConfiguracion;                                              // Fichero con la configuración del servidor
-        String nombreFichero = rutaConfiguracion.substring(rutaConfiguracion.lastIndexOf("/"));    // Nombre del fichero que almacena la configuración
+        String nombreFichero = "servidor.properties";                           // Nombre del fichero que almacena la configuración
         FileInputStream canalEntrada = null;                                    // Permite obtener los datos de entrada
         FileOutputStream canalSalida = null;                                    // Muestra los datos obtenidos
         // Variables auxiliares temporales
@@ -132,7 +132,7 @@ public class ServidorHTTP {
         try {
             if ( !rutaConfiguracion.endsWith("/") )                             // Si la ruta de configuración no es un directorio
                 rutaConfiguracion += "/";                                       // Se añade / al final para que sea directorio
-            ficheroConfiguracion = new File(rutaConfiguracion);                 // Obtiene el nombre del fichero que contiene la configuración
+            ficheroConfiguracion = new File(rutaConfiguracion + nombreFichero); // Obtiene el nombre del fichero que contiene la configuración
             ficheroConfiguracion.createNewFile();                               // En caso de que dicho fichero no exista, lo crea
             canalEntrada = new FileInputStream(ficheroConfiguracion);           // Los datos se obtendrán a partir del fichero de configuración
             propiedades.load(canalEntrada);                                     // Obtiene las propiedades almacenadas en el fichero de configuración del servidor
@@ -165,7 +165,9 @@ public class ServidorHTTP {
             this.permiso = Boolean.parseBoolean(auxAllow);
             
             canalSalida = new FileOutputStream(ficheroConfiguracion);           // Las propiedades se escribirán en el fichero de configuración
-            propiedades.store(canalSalida, "Configuración por defecto del servidor:");      // Escribe las propiedades en el fichero y añade un comentario            
+            propiedades.store(canalSalida, "Configuración por defecto del servidor:");      // Escribe las propiedades en el fichero y añade un comentario 
+            
+            System.out.println("Servidor configurado a partir del fichero de configuración: " + ficheroConfiguracion.getName());
         } // fin try
         catch (FileNotFoundException FNFexc) {
             System.err.println("Error: no existe el registro " + nombreFichero);
@@ -199,7 +201,6 @@ public class ServidorHTTP {
                 servidor.escucharPeticiones();
                 break;
             case 1:         // Recibe la ruta al fichero de configuracion
-                File config = new File(args[0]);                                // Obtiene el fichero
                 servidor = new ServidorHTTP(args[0]);                       // Llama al constructor con parámetros
                 servidor.escucharPeticiones();
             break;

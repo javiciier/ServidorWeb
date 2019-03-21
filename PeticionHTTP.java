@@ -241,7 +241,7 @@ public class PeticionHTTP extends Thread {
                     canalSalida.println("Código de estado: " + codigoRespuesta);
                     if ( recurso != null )                                      // Si recibe algún recurso, muestra su tamaño
                         canalSalida.println("Tamaño: " + recurso.length() + " (Bytes)");
-                    canalSalida.println("------------------------------\n");    // Separa un registro de otro
+                    canalSalida.println("---------------------------------------------\n");    // Separa un registro de otro
                 break;
                 case '4':                                                       // Se generó un error gestionando la petición
                     registro = new File(ServidorHTTP.registroErrores);          // Obtiene el fichero donde almacena los errores
@@ -251,7 +251,7 @@ public class PeticionHTTP extends Thread {
                     canalSalida.println("IP cliente: " + this.cliente.getInetAddress().toString().substring(1));
                     canalSalida.println("Fecha y hora del error: " + new Date());
                     canalSalida.println("Mensaje de error: " + actividad);
-                    canalSalida.println("------------------------------\n");    // Separa un registro de otro
+                    canalSalida.println("---------------------------------------------\n");    // Separa un registro de otro
                 break;
             } // fin switch
         }
@@ -267,10 +267,11 @@ public class PeticionHTTP extends Thread {
      */
     @Override
     public void run() {
-        String[] peticion = this.lineaComandos.split(" ");                      // Obtiene qué petición realizar (GET, HEAD, etc)
+        String[] peticion;                                                      // Array que almacenará la petición separada por campos
         try {
             this.lineaComandos = this.entrada.readLine();                       // Obtiene la petición realizada y la almacena (posible IOException)
             if ( this.lineaComandos != null ) {                                 // Si recibió la petición correctamente
+                peticion = this.lineaComandos.split(" ");                       // Almacena los campos de la petición
                 // Comprobar que el formato de la petición es correcto
                 if (peticion.length != 3) {
                     throw new IllegalArgumentException("FORMATO: comando fichero versionHTTP");
