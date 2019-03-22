@@ -27,7 +27,7 @@ public class ServidorHTTP {
     public static String registroAccesos = rutaServidor + "/registros/AccesosServidor.txt";    // Ruta hacia el registro que almacena los accesos al servidor
     public static String registroErrores = rutaServidor + "/registros/ErroresServidor.txt";    // Ruta hacia el registro que almacena los errores producidos en las peticiones al servidor
     public static String recursoPorDefecto;                                     // Fichero que devuelve el servidor por defecto
-    public boolean permiso;
+    public static boolean permiso;
     enum ConfiguracionDefecto {
         /* Todos los campos almacenados serán Strings porque serán los valores
         *  que almacena la clase Properties de Java dentro del fichero.
@@ -90,6 +90,7 @@ public class ServidorHTTP {
                 this.cliente = this.servidor.accept();                          // Servidor acepta conexión al recibirla (puede generar IOException)
                 System.out.println("Conexión aceptada.");
                 this.peticionHTTP = new PeticionHTTP(this.cliente);             // Crea una nueva petición HTTP que gestiona la conexión recibida
+                this.cliente.setSoTimeout(60*1000);
                 this.peticionHTTP.start();                                      // Comienza a ejecutar el nuevo thread creado anteriormente
             }
         }

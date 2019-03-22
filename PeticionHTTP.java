@@ -6,8 +6,11 @@
 
 import java.io.*;
 import java.net.*;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
-
+import java.util.Locale;
 
 /**
 * Clase encargada de realizar las peticiones HTTP al servidor web.
@@ -24,7 +27,9 @@ public class PeticionHTTP extends Thread {
     enum EstadoHTTP {				// Posibles estados a recibir cuando se realiza una solicitud HTTP
     	OK("200 OK"),								// Recurso se recibió sin errores
     	NOT_FOUND("404 Not Found"),						// Recurso no se encontró o no existe
-        BAD_REQUEST("400 Bad Request");
+        BAD_REQUEST("400 Bad Request"),
+        FORBIDDEN("403 Forbidden"),
+        NOT_MODIFIED("304 Not Modified");
     	// recordar eliminar ; al añadir nuevos estados
 
     	private final String estado;
@@ -84,12 +89,41 @@ public class PeticionHTTP extends Thread {
         String[] comandos = this.lineaComandos.split(" ");                      // Separa los elementos de la línea de comandos. Formato <COMANDO> <RUTA> <VERSION_HTTP>
         File recurso = new File("/home/fic/Escritorio/Redes/Practicas/p1/ficheros" + comandos[1]);       // Obtiene el recurso buscado a partir de la ruta del servidor y la ruta especificada.
         //PrintWriter canalSalida = new PrintWriter(this.salida, true);         // Permite mostrar información por pantalla
+        Date fechaModServidor = new Date(recurso.lastModified());
+        Date fechaModCliente;
         
-        if ( recurso.exists() ) {						// Si el recurso EXISTE, lo muestra
-            mostrarRespuesta(EstadoHTTP.OK, recurso, true);
+        if ( recurso.exists() ) {						// Si el recurso EXISTE, lo procesa
+            if ( recurso.isDirectory() ) {                                      // SI el recurso solicitado es un directorio
+                if ( !comandos[1].endsWith("/") ) {                             // SI el direcotorio no acaba en "/", se le añade
+                    comandos[1] += "/";
+                }
+                // Si recibe un directorio, muestra el archivo por defecto a mostrar (index.html)
+                File indice = new File("/home/fic/Escritorio/Redes/Practicas/p1/ficheros" + comandos[1] + ServidorHTTP.ConfiguracionDefecto.DIRECTORY_INDEX.getValor());
+                if ( indice.exists() ) {                                        // Si el fichero por defecto existe, lo muestra
+                    mostrarRespuesta(EstadoHTTP.OK, indice, true);
+                }
+                else {                                                          // Si no existe dicho fichero, muestra una lista con todos lso ficheros que existen y enlaces para acceder a ellos
+                    if ( ServidorHTTP.permiso ) {                               // Comprobamos si el servidor da permiso para mostrar todos los ficheros que contiene
+                        String enlace = "http://" + this.cabecera.getDispositivo() + comandos[1];
+                        mostrarRecursosDirectorio(recurso.list(), enlace);
+                    }
+                    else {
+                        mostrarRespuesta(EstadoHTTP.FORBIDDEN, null, true);
+                    }
+                }
+            } // fin if
+            else {
+                fechaModCliente = this.cabecera.getFecha();
+                if (fechaModCliente == null || fechaModServidor.after(fechaModCliente)) {
+                    mostrarRespuesta(EstadoHTTP.OK, recurso, true);
+                }
+                else {
+                    mostrarRespuesta(EstadoHTTP.NOT_MODIFIED, null, false);
+                }
+            }
         } // fin if
         else {									// Recurso no existe -> ERROR 404											// El recurso no existe
-            mostrarRespuesta(EstadoHTTP.NOT_FOUND, null, true);
+            mostrarRespuesta(EstadoHTTP.NOT_FOUND, null, false);
         }  // fin else
     }
     
@@ -113,14 +147,23 @@ public class PeticionHTTP extends Thread {
             case NOT_FOUND:
                 textoEstado = ( this.lineaComandos.split(" ")[2] + " " + estado.getEstadoHTTP() );
                 canalSalida.println(textoEstado);
-                //recurso = new File("/home/fic/Escritorio/Redes/Practicas/p1/ficheros/notFound.html");
-            break;  // fin NOT_FOUND
+                recurso = new File("/home/fic/Escritorio/Redes/Practicas/p1/ficheros/NOT_FOUND.html");
+            break;
             case BAD_REQUEST:
             	textoEstado = ( this.lineaComandos.split(" ")[2] + " " + estado.getEstadoHTTP() );
                 canalSalida.println(textoEstado);
-                //recurso = new File("/home/fic/Escritorio/Redes/Practicas/p1/ficheros/BAD_REQUEST.html");
+                recurso = new File("/home/fic/Escritorio/Redes/Practicas/p1/ficheros/BAD_REQUEST.html");
                 /* canalSalida.println();
                 mostrarCuerpoGET(recurso);                                      // Muestra recurso BAD REQUEST */
+            break;
+            case FORBIDDEN:
+                textoEstado = ( this.lineaComandos.split(" ")[2] + " " + estado.getEstadoHTTP() );
+                canalSalida.println(textoEstado);
+                recurso = new File("/home/fic/Escritorio/Redes/Practicas/p1/ficheros/FORBIDDEN.html");
+            break;
+            case NOT_MODIFIED:
+                textoEstado = ( this.lineaComandos.split(" ")[2] + " " + estado.getEstadoHTTP() );
+                canalSalida.println(textoEstado);
             break;
             default:
                 canalSalida.println("Error: respuesta no válida");
@@ -139,7 +182,7 @@ public class PeticionHTTP extends Thread {
         }
         
         // CUERPO DE LA PETICIÓN
-        if ( mostrarCuerpo && (recurso != null) ) {
+        if ( mostrarCuerpo ) {
             mostrarCuerpoGET(recurso);
         }
         registrarActividad(textoEstado, recurso);
@@ -160,7 +203,7 @@ public class PeticionHTTP extends Thread {
             while ( (tamanho = origen.read(contenido)) != -1 ) {
                 this.salida.write(contenido, 0, tamanho);
             }
-            //System.out.println();
+            this.salida.write('\n');
         }
         catch (FileNotFoundException FNFexc) {
             System.err.println("Error: no se encuentra fichero " +
@@ -261,45 +304,150 @@ public class PeticionHTTP extends Thread {
     }
     
     /**
+    * Método que lee todas las cabeceras de la respuesta del servidor.
+    * Su finalidad principal es detectar si existe la cabecera "IF-MODIFIED-SINCE".
+    * @param arrayCabeceras     Array que contiene las cabeceras de la respuesta generada
+    */
+    private void reconocerCabeceras(ArrayList<String> arrayCabeceras) {
+        SimpleDateFormat fecha;                                                 // Fecha de IF-MODIFIED-SINCE (si existiese)
+        String[] camposCabecera;                                                // Array que almacena el nombre y el contenido de cada cabecera
+        
+        for(String cabecera: arrayCabeceras) {                                  // Recorre todas las líneas de cabecera de la respuesta
+            camposCabecera = cabecera.split(": ");
+            switch (camposCabecera[0]) {                                  // Según el nombre de la cabecera
+                case "If-Modified-Since":
+                    try {
+                        fecha = new SimpleDateFormat("EEE MMM dd HH:mm:ss z yyyy", new Locale("english"));
+                        this.cabecera.setFecha(fecha.parse(camposCabecera[1]));
+                    }
+                    catch (ParseException Pexc) {
+                        System.err.println("Error: " + Pexc.getMessage());
+                    }
+                break;
+                case "Host":
+                    this.cabecera.setDispositivo(camposCabecera[1]);
+                break;
+            }
+        } // fin for
+    }
+    
+    /**
+    * Muestra los ficheros dentro de un directorio en caso de recibir como recurso un directorio.
+    * @param ficheros       Lista de ficheros dentro del directorio
+    * @param directorio     Nombre del directorio
+    */
+    private void mostrarRecursosDirectorio(String[] ficheros, String enlace) {
+        String links = "";
+        links += "<html>"
+            + "<head>Ficheros en directorio</head>"
+                + "<body>"
+                + "<ul>";
+        // Enlaza a cada fichero existente
+        for (String fichero: ficheros) {
+            links += "<li>"
+                + "<a href=\"" + enlace + fichero + "\">" + fichero + "</a>"
+                + "</li>";
+        }
+        links += "</ul>"
+                + "</body>"
+                + "</html>";
+        
+        try {
+            mostrarRespuesta(EstadoHTTP.OK, null, false);
+            this.salida.write(links.getBytes());
+        }
+        catch (IOException IOexc) {
+            System.err.println("Error: " + IOexc.getLocalizedMessage());
+        }
+    }
+    /**
      * Método encargado de ejecutar cada thread creado por el servidor.
      * Sobreescribe al método run() de la clase Thread para adaptar su comportamiento a nuestro servidor.
      * Este método está destinado a ejecutarse desde el método main() del ServidorHTTP
      */
     @Override
     public void run() {
-        String[] peticion;                                                      // Array que almacenará la petición separada por campos
+        boolean mantenerConexion = true;                                        // Indica si el socket puede realizar varias peticiónes en caso de protocolo HTTP/1.1
+        boolean responder = true;                                               // Indica si se debe enviar un mensaje de vuelta o se produjo algún error (por defecto el servidor siempre responderá)
+        ArrayList<String> cabeceras = new ArrayList<>();                        // ArrayList que almacenará las lineas de las cabeceras de la respuesta
+        
         try {
-            this.lineaComandos = this.entrada.readLine();                       // Obtiene la petición realizada y la almacena (posible IOException)
-            if ( this.lineaComandos != null ) {                                 // Si recibió la petición correctamente
-                peticion = this.lineaComandos.split(" ");                       // Almacena los campos de la petición
-                // Comprobar que el formato de la petición es correcto
-                if (peticion.length != 3) {
-                    throw new IllegalArgumentException("FORMATO: comando fichero versionHTTP");
+            this.cliente.setSoTimeout(this.tiempoEspera*1000);                  // Establece el tiempo de espera del socket
+            while (mantenerConexion) {
+                String[] peticion = null;                                              // Array que almacena las partes de la petición recibida
+                this.lineaComandos = this.entrada.readLine();                   // Obtiene la petición realizada por el cliente
+                if (this.lineaComandos != null) {
+                    peticion = this.lineaComandos.split(" ");                   // Obtiene cada parte de la petición recibida
+                }    
+                /* else
+                    continue*/
+                if (peticion.length != 3) {                                     // Si recibe una petición con campos de más o de menos, muestra error
+                    mostrarRespuesta(EstadoHTTP.BAD_REQUEST, null, true);
                 }
-                System.out.println(this.lineaComandos);                         // Muestra la petición solicitada por pantalla
-                switch (peticion[0]) {
-                    case "HEAD":
-                        HEADhttp();
-                    break;
-                    case "GET":
-                        GEThttp();
-                    break;
-                    default:                                                    // Recibe una petición que no se comprende (mal escrita, no existe, etc)
-                        mostrarRespuesta(EstadoHTTP.BAD_REQUEST, null, false);
-                } // fin switch
-            } // fin if
-        } // fin try
-        catch (SocketException Sexc) {
-            System.err.println("Socket error: " + Sexc.getMessage());
+                else {                                                          // La petición ha sido correcta
+                    String lineaCabecera;
+                    do {                                                        // Lee las cabeceras de las respuestas y las almacena en un arraylist
+                        lineaCabecera = this.entrada.readLine();
+                        cabeceras.add(lineaCabecera);
+                        System.out.println(lineaCabecera);
+                    } while ( !lineaCabecera.isEmpty() );
+                    reconocerCabeceras(cabeceras);
+                    
+                    System.out.println(this.lineaComandos);                     // Muestra la petición recibida
+                    // MUESTRA LAS CABECERAS
+                    for (String cabecera : cabeceras) {
+                        System.out.println(cabecera);
+                    }
+                    // LÍNEA EN BLANCO
+                    System.out.println();
+                    
+                    switch(peticion[2]) {                                       // Comprueba el protocolo HTTP empleado
+                        case "HTTP/1.0":                                        // Conexión no es persistente
+                            mantenerConexion = false;
+                        break;
+                        case "HTTP/1.1":                                        // Conexión debe mantenerse
+                            mantenerConexion = true;
+                        break;
+                        default:                                                // Formato inválido
+                            System.err.println("Formato " + peticion[2] + " no válido");
+                            mostrarRespuesta(EstadoHTTP.BAD_REQUEST, null, true);
+                            mantenerConexion = false;
+                            responder = false;
+                        break;
+                    }
+                    
+                    if (responder) {                                            // Si el servidor debe enviar una respuesta
+                        switch(peticion[0]) {                                   // Selecciona la respuesta que debe devolver
+                            case "HEAD":
+                                HEADhttp();
+                            break;
+                            case "GET":
+                                GEThttp();
+                            break;
+                            case "TRACE": case "POST": case "DELETE": case "PUT":   // Estos comandos no están implementadas en este servidor
+                                System.err.println("FUNCIÓN " + peticion[0] + " NO IMPLEMENTADA");
+                                mostrarRespuesta(EstadoHTTP.BAD_REQUEST, null, false);
+                            break;
+                            default:                                            // Recibe un comando extraño
+                                mostrarRespuesta(EstadoHTTP.BAD_REQUEST, null, false);
+                            break;
+                        }
+                    } // fin if(responder)                   
+                } // fin else 
+            } // fin while
         }
-        catch (IOException IOexc) {
-            System.err.println("Runtime error: " + IOexc.getMessage());
+        catch ( SocketException Sexc ) {
+            System.err.println("FALLO DE SOCKET: 60 segundos sin recibir peticiones");
+        }
+        catch ( IOException IOexc ) {
+            System.err.println("RUNTIME ERROR: " + IOexc.getMessage());
         }
         finally {                                                               // Cerramos los canales de entrada y salida y capturamos sus posibles excepciones
             try {
                 this.entrada.close();
                 this.salida.close();
                 this.cliente.close();
+                cabeceras.clear();
             }
             catch (IOException IOexc) {
                 System.err.println("Error: no se pueden liberar recursos.");
